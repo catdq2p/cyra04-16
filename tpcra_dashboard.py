@@ -190,9 +190,18 @@ def section_summary(df: pd.DataFrame) -> pd.DataFrame:
     ).reset_index()
     grp["compliance_pct"] = ((grp["answered"] - grp["gaps"]) / grp["total"] * 100).round(1)
     grp["unanswered"] = grp["total"] - grp["answered"]
-    grp["risk_score"] = tiered.groupby("section").apply(
-        lambda g: g[g["is_gap"]]["risk_tier"].map(risk_score).sum()
-    ).values
+    # Compute risk_score via merge to avoid index misalignment
+    score_map = (
+        tiered[tiered["is_gap"]]
+        .copy()
+        .assign(score=lambda d: d["risk_tier"].map(risk_score).fillna(0).astype(float))
+        .groupby("section")["score"]
+        .sum()
+        .reset_index()
+        .rename(columns={"score": "risk_score"})
+    )
+    grp = grp.merge(score_map, on="section", how="left")
+    grp["risk_score"] = grp["risk_score"].fillna(0).astype(float)
     return grp.sort_values("risk_score", ascending=False)
 
 
