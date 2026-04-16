@@ -218,13 +218,7 @@ with st.sidebar:
         type=["xlsx"],
         help="Supports TPCRA Questionnaire v3.0 and above",
     )
-    st.divider()
-    st.caption("**Filters**")
-    show_unanswered = st.checkbox("Include unanswered items as gaps", value=True)
-    min_tier = st.selectbox(
-        "Minimum risk tier to display",
-        ["All", "Critical", "High", "Medium", "Low"],
-    )
+
 
 # ── Load file ─────────────────────────────────────────────────────────────────
 @st.cache_data(show_spinner=False)
@@ -252,20 +246,13 @@ if uploaded is None:
 with st.spinner("Analysing questionnaire…"):
     meta, df2, evid = load_data(uploaded.read())
 
-# Apply tier filter
-tier_filter_map = {"All": list(RISK_ORDER.keys()), "Critical": ["Critical"],
-                   "High": ["Critical","High"], "Medium": ["Critical","High","Medium"],
-                   "Low": list(RISK_ORDER.keys())}
-visible_tiers = tier_filter_map[min_tier]
-df_view = df2[df2["risk_tier"].isin(visible_tiers) | ~df2["risk_tier"].isin(RISK_ORDER)].copy()
-
-gaps_df   = df_view[df_view["is_gap"]]
+# Base dataframes (no filter applied globally)
+df_view   = df2.copy()
+gaps_df   = df2[df2["is_gap"]]
 tiered_df = df2[df2["risk_tier"].isin(RISK_ORDER)]
 
 # Unanswered
 unanswered = df2[df2["response"] == "—"].copy()
-if show_unanswered:
-    unanswered["is_gap"] = True
 
 # ── Header metadata ────────────────────────────────────────────────────────────
 company_name = meta.get("Company Name *", meta.get("Company Name", "—"))
@@ -355,12 +342,44 @@ tab1, tab2, tab3, tab4 = st.tabs(["🚨 Gaps & Findings", "📋 Full Response Re
 # ── Tab 1: Gaps ───────────────────────────────────────────────────────────────
 with tab1:
     st.markdown("### Identified Gaps & Compliance Issues")
-    if gaps_df.empty:
-        st.success("✅ No gaps identified based on current responses and filter settings.")
+
+    # ── Filters (moved from sidebar) ──
+    f1, f2 = st.columns([1, 1])
+    with f1:
+        min_tier = st.selectbox(
+            "Minimum risk tier",
+            ["All", "Critical", "High", "Medium", "Low"],
+            key="gap_tier_filter"
+        )
+    with f2:
+        show_unanswered = st.checkbox("Include unanswered items as gaps", value=True, key="gap_unans")
+
+    tier_filter_map = {
+        "All":      list(RISK_ORDER.keys()),
+        "Critical": ["Critical"],
+        "High":     ["Critical", "High"],
+        "Medium":   ["Critical", "High", "Medium"],
+        "Low":      list(RISK_ORDER.keys()),
+    }
+    visible_tiers = tier_filter_map[min_tier]
+    filtered_gaps = df2[
+        df2["is_gap"] & df2["risk_tier"].isin(visible_tiers)
+    ].copy()
+    if show_unanswered:
+        unans_rows = df2[
+            (df2["response"] == "—") & df2["risk_tier"].isin(visible_tiers)
+        ].copy()
+        unans_rows["is_gap"] = True
+        filtered_gaps = pd.concat([filtered_gaps, unans_rows]).drop_duplicates(subset="id")
+
+    st.divider()
+
+    if filtered_gaps.empty:
+        st.success("✅ No gaps identified based on current filter settings.")
     else:
         # Group by section
-        for section in gaps_df["section"].unique():
-            section_gaps = gaps_df[gaps_df["section"] == section]
+        for section in filtered_gaps["section"].unique():
+            section_gaps = filtered_gaps[filtered_gaps["section"] == section]
             tier_label = section_gaps["risk_tier"].map(RISK_ORDER).min()
             worst_tier = {v: k for k, v in RISK_ORDER.items()}.get(tier_label, "Low")
 
@@ -435,7 +454,7 @@ with tab3:
 
 # ── Tab 4: Engagement info ─────────────────────────────────────────────────────
 with tab4:
-    st.markdown("### Engagement & Provider Information ")
+    st.markdown("### Engagement & Provider Information (Part 1)")
     xl_obj = pd.ExcelFile(BytesIO(uploaded.getvalue()))
     p1 = xl_obj.parse("Part 1", header=None)
     rows_out = []
