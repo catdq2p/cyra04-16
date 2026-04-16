@@ -494,6 +494,8 @@ with tab4:
             continue
         if "SECTION" in qid:
             continue
+        if qid in ("1.1", "1.2", "1.3"):
+            continue
         rows_out.append({"#": qid, "Question": q,
                          "Response": resp if resp not in ("nan", "") else "—"})
     p1_disp = pd.DataFrame(rows_out)
