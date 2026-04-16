@@ -485,22 +485,73 @@ with tab4:
     st.markdown("### Engagement & Provider Information")
     xl_obj = pd.ExcelFile(BytesIO(uploaded.getvalue()))
     p1 = xl_obj.parse("Part 1", header=None)
-    rows_out = []
+
+    EXCLUDED_IDS = {"1.1", "1.2", "1.3", "1.4"}
+    SECTION_ICONS = {
+        "SECTION 1": "👤", "SECTION 2": "📋", "SECTION 3": "🏢",
+        "SECTION 4": "💻", "SECTION 5": "🖧",  "SECTION 6": "☁️",
+        "SECTION 7": "🔒", "SECTION 8": "🔄",
+    }
+
+    current_section_label = None
+    items_in_section = []
+    sections_data = []
+
     for _, row in p1.iterrows():
         qid  = str(row[0]).strip()
         q    = str(row[1]).strip() if pd.notna(row[1]) else ""
         resp = str(row[2]).strip() if pd.notna(row[2]) else ""
+
         if qid in ("nan", "#", "") or q in ("nan", "Question", ""):
             continue
+
         if "SECTION" in qid:
+            if items_in_section:
+                sections_data.append((current_section_label, items_in_section))
+            current_section_label = qid
+            items_in_section = []
             continue
-        if qid in ("1.1", "1.2", "1.3"):
+
+        if qid in EXCLUDED_IDS:
             continue
-        rows_out.append({"#": qid, "Question": q,
-                         "Response": resp if resp not in ("nan", "") else "—"})
-    p1_disp = pd.DataFrame(rows_out)
-    st.dataframe(p1_disp, use_container_width=True, height=500,
-                 column_config={"Question": st.column_config.TextColumn(width="large")})
+
+        items_in_section.append({
+            "#": qid,
+            "Question": q,
+            "Response": resp if resp not in ("nan", "") else "—",
+        })
+
+    if items_in_section:
+        sections_data.append((current_section_label, items_in_section))
+
+    for section_label, items in sections_data:
+        if not items:
+            continue
+        icon = next((v for k, v in SECTION_ICONS.items() if k in (section_label or "")), "📌")
+        # Clean up section label: remove "SECTION X —" prefix noise
+        display_label = section_label or "General"
+        with st.expander(f"{icon} **{display_label}**", expanded=True):
+            for item in items:
+                col_q, col_r = st.columns([2, 2])
+                with col_q:
+                    st.markdown(
+                        f"<span style='color:#8899aa; font-size:11px'>{item['#']}</span><br>"
+                        f"<span style='font-size:14px'>{item['Question']}</span>",
+                        unsafe_allow_html=True
+                    )
+                with col_r:
+                    resp_val = item["Response"]
+                    if resp_val == "—":
+                        st.markdown(
+                            "<span style='color:#8899aa; font-style:italic'>Not provided</span>",
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        st.markdown(
+                            f"<span style='font-size:14px'>{resp_val}</span>",
+                            unsafe_allow_html=True
+                        )
+                st.divider()
 
 # ── Sidebar summary ────────────────────────────────────────────────────────────
 with st.sidebar:
