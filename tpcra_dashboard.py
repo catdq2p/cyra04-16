@@ -12,7 +12,7 @@ from io import BytesIO
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="TPCRA Risk Dashboard",
+    page_title="Third Party Cyber Risk Assessment Dashboard",
     page_icon="🛡️",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -206,7 +206,7 @@ def section_summary(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ── Main App ──────────────────────────────────────────────────────────────────
-st.title("🛡️ TPCRA Risk Assessment Dashboard")
+st.title("🛡️ Third Party Cyber Risk Assessment Dashboard")
 st.caption("Third-Party Cybersecurity Risk Assessment — Gap & Risk Analyzer")
 
 # ── Sidebar upload ─────────────────────────────────────────────────────────────
@@ -395,23 +395,24 @@ with tab2:
     if resp_filter:
         display_df = display_df[display_df["response"].isin(resp_filter)]
 
-    # Colour-coded table
-    def color_response(val):
-        colors = {"Yes": "#e8f8f0", "No": "#fde8e8",
-                  "Partial": "#fefde7", "N/A": "#f0f0f0"}
-        return f"background-color: {colors.get(val, 'transparent')}"
+    # Colour-coded table — apply(axis=0) works on all pandas versions
+    RESP_COLORS = {"Yes": "#e8f8f0", "No": "#fde8e8", "Partial": "#fefde7", "N/A": "#f0f0f0"}
 
-    def color_tier(val):
-        bg = RISK_BG.get(val, "transparent")
-        return f"background-color: {bg}"
+    def style_response_col(col):
+        return [f"background-color: {RESP_COLORS.get(v, 'transparent')}" for v in col]
 
-    styled = (
+    def style_tier_col(col):
+        return [f"background-color: {RISK_BG.get(v, 'transparent')}" for v in col]
+
+    table_df = (
         display_df[["id", "section", "statement", "response", "risk_tier", "other_info"]]
         .rename(columns={"id": "ID", "section": "Section", "statement": "Statement",
                          "response": "Response", "risk_tier": "Tier", "other_info": "Remarks"})
-        .style
-        .applymap(color_response, subset=["Response"])
-        .applymap(color_tier, subset=["Tier"])
+    )
+    styled = (
+        table_df.style
+        .apply(style_response_col, subset=["Response"], axis=0)
+        .apply(style_tier_col, subset=["Tier"], axis=0)
     )
     st.dataframe(styled, use_container_width=True, height=500,
                  column_config={"Statement": st.column_config.TextColumn(width="large")})
