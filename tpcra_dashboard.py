@@ -405,30 +405,52 @@ with tab1:
     if filtered_gaps.empty:
         st.success("✅ No gaps identified based on current filter settings.")
     else:
-        # Group by domain in A–N order
+        # Sort domains in A–N order
         ordered_domains = list(DOMAIN_MAP.values())
         gap_sections = filtered_gaps["section"].unique().tolist()
-        # Sort sections by domain order, unknown sections appended at end
         sorted_sections = sorted(
             gap_sections,
             key=lambda s: ordered_domains.index(s) if s in ordered_domains else len(ordered_domains)
         )
 
+        total_gap_count = len(filtered_gaps)
+        st.markdown(f"**{total_gap_count} gap(s) found across {len(sorted_sections)} domain(s)**")
+        st.divider()
+
         for section in sorted_sections:
-            section_gaps = filtered_gaps[filtered_gaps["section"] == section]
-            tier_label = section_gaps["risk_tier"].map(RISK_ORDER).min()
-            worst_tier = {v: k for k, v in RISK_ORDER.items()}.get(tier_label, "Low")
-            # Find domain letter for label
+            section_gaps = filtered_gaps[filtered_gaps["section"] == section].sort_values(
+                "risk_tier", key=lambda s: s.map(RISK_ORDER)
+            )
+            tier_label   = section_gaps["risk_tier"].map(RISK_ORDER).min()
+            worst_tier   = {v: k for k, v in RISK_ORDER.items()}.get(tier_label, "Low")
             domain_letter = next((k for k, v in DOMAIN_MAP.items() if v == section), "")
-            domain_label = f"{domain_letter} — {section}" if domain_letter else section
+            domain_label  = f"{domain_letter} — {section}" if domain_letter else section
+
+            # Count by tier within this domain
+            crit_c = int((section_gaps["risk_tier"] == "Critical").sum())
+            high_c = int((section_gaps["risk_tier"] == "High").sum())
+            med_c  = int((section_gaps["risk_tier"] == "Medium").sum())
+            low_c  = int((section_gaps["risk_tier"] == "Low").sum())
+            tier_summary = " · ".join(filter(None, [
+                f"🔴 {crit_c} Critical" if crit_c else "",
+                f"🟠 {high_c} High"     if high_c else "",
+                f"🟡 {med_c} Medium"    if med_c  else "",
+                f"🟢 {low_c} Low"       if low_c  else "",
+            ]))
 
             with st.expander(
-                f"{domain_label} ({len(section_gaps)} gap(s))",
+                f"**{domain_label}** — {len(section_gaps)} gap(s)    {tier_summary}",
                 expanded=(worst_tier in ("Critical", "High")),
             ):
-                for _, row in section_gaps.sort_values(
-                    "risk_tier", key=lambda s: s.map(RISK_ORDER)
-                ).iterrows():
+                # Column headers
+                hcols = st.columns([1, 0.7, 4, 1.5])
+                hcols[0].markdown("**Tier**")
+                hcols[1].markdown("**ID**")
+                hcols[2].markdown("**Statement**")
+                hcols[3].markdown("**Response**")
+                st.markdown("<hr style='margin:4px 0 8px 0'>", unsafe_allow_html=True)
+
+                for _, row in section_gaps.iterrows():
                     cols = st.columns([1, 0.7, 4, 1.5])
                     cols[0].markdown(badge(row["risk_tier"]))
                     cols[1].markdown(f"`{row['id']}`")
