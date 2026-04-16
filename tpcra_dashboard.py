@@ -441,14 +441,32 @@ with tab1:
 # ── Tab 2: Full responses ──────────────────────────────────────────────────────
 with tab2:
     st.markdown("### Full Questionnaire Response Review")
-    col_f1, col_f2 = st.columns([2, 1])
+
+    # Filters
+    col_f1, col_f2, col_f3 = st.columns([2, 1.5, 1])
     with col_f1:
         search = st.text_input("🔍 Search statements", placeholder="e.g. encryption, MFA, patch…")
     with col_f2:
+        domain_options = ["All Domains"] + [f"{k} — {v}" for k, v in DOMAIN_MAP.items()]
+        domain_filter = st.selectbox("Domain", domain_options, key="tab2_domain")
+    with col_f3:
         resp_filter = st.multiselect("Response", ["Yes", "No", "Partial", "N/A", "—"],
                                       default=["Yes", "No", "Partial", "N/A", "—"])
 
     display_df = df_view.copy()
+
+    # Apply domain filter
+    if domain_filter != "All Domains":
+        selected_domain = domain_filter.split(" — ", 1)[1]
+        display_df = display_df[display_df["section"] == selected_domain]
+
+    # Add domain label column (e.g. "A — Organizational Management")
+    inv_domain = {v: k for k, v in DOMAIN_MAP.items()}
+    display_df = display_df.copy()
+    display_df["domain"] = display_df["section"].apply(
+        lambda s: f"{inv_domain[s]} — {s}" if s in inv_domain else s
+    )
+
     if search:
         display_df = display_df[display_df["statement"].str.contains(search, case=False, na=False)]
     if resp_filter:
@@ -464,8 +482,8 @@ with tab2:
         return [f"background-color: {RISK_BG.get(v, 'transparent')}" for v in col]
 
     table_df = (
-        display_df[["id", "section", "statement", "response", "risk_tier", "other_info"]]
-        .rename(columns={"id": "ID", "section": "Section", "statement": "Statement",
+        display_df[["id", "domain", "statement", "response", "risk_tier", "other_info"]]
+        .rename(columns={"id": "ID", "domain": "Domain", "statement": "Statement",
                          "response": "Response", "risk_tier": "Tier", "other_info": "Remarks"})
     )
     styled = (
@@ -474,7 +492,8 @@ with tab2:
         .apply(style_tier_col, subset=["Tier"], axis=0)
     )
     st.dataframe(styled, use_container_width=True, height=500,
-                 column_config={"Statement": st.column_config.TextColumn(width="large")})
+                 column_config={"Statement": st.column_config.TextColumn(width="large"),
+                                "Domain": st.column_config.TextColumn(width="medium")})
 
 # ── Tab 3: Evidence ────────────────────────────────────────────────────────────
 with tab3:
