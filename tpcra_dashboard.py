@@ -384,16 +384,16 @@ with tab1:
             worst_tier = {v: k for k, v in RISK_ORDER.items()}.get(tier_label, "Low")
 
             with st.expander(
-                f"{badge(worst_tier)}  {section} — {len(section_gaps)} gap(s)",
+                f"{section} — {len(section_gaps)} gap(s)",
                 expanded=(worst_tier in ("Critical", "High")),
             ):
                 for _, row in section_gaps.sort_values(
                     "risk_tier", key=lambda s: s.map(RISK_ORDER)
                 ).iterrows():
-                    cols = st.columns([0.7, 4, 1, 1.5])
+                    cols = st.columns([0.7, 1, 4, 1.5])
                     cols[0].markdown(f"`{row['id']}`")
-                    cols[1].markdown(row["statement"])
-                    cols[2].markdown(badge(row["risk_tier"]))
+                    cols[1].markdown(badge(row["risk_tier"]))
+                    cols[2].markdown(row["statement"])
                     resp_color = {"No": "🔴", "Partial": "🟡", "N/A": "⚪", "—": "⬜"}.get(
                         row["response"], "🔵"
                     )
