@@ -454,7 +454,7 @@ with tab3:
 
 # ── Tab 4: Engagement info ─────────────────────────────────────────────────────
 with tab4:
-    st.markdown("### Engagement & Provider Information (Part 1)")
+    st.markdown("### Engagement & Provider Information")
     xl_obj = pd.ExcelFile(BytesIO(uploaded.getvalue()))
     p1 = xl_obj.parse("Part 1", header=None)
     rows_out = []
@@ -462,14 +462,12 @@ with tab4:
         qid  = str(row[0]).strip()
         q    = str(row[1]).strip() if pd.notna(row[1]) else ""
         resp = str(row[2]).strip() if pd.notna(row[2]) else ""
-        tier = str(row[4]).strip() if pd.notna(row[4]) else ""
         if qid in ("nan", "#", "") or q in ("nan", "Question", ""):
             continue
         if "SECTION" in qid:
             continue
         rows_out.append({"#": qid, "Question": q,
-                         "Response": resp if resp not in ("nan", "") else "—",
-                         "Tier": tier if tier not in ("nan", "") else "—"})
+                         "Response": resp if resp not in ("nan", "") else "—"})
     p1_disp = pd.DataFrame(rows_out)
     st.dataframe(p1_disp, use_container_width=True, height=500,
                  column_config={"Question": st.column_config.TextColumn(width="large")})
