@@ -342,13 +342,20 @@ with col_chart1:
 with col_chart2:
     st.subheader("🕸️ Compliance by Domain")
     sec_sum = section_summary(df2)
-    fig2 = px.bar(sec_sum.head(12), x="compliance_pct", y="section",
+    # Map section names to short domain labels for display
+    inv_domain = {v: k for k, v in DOMAIN_MAP.items()}
+    sec_sum["domain_label"] = sec_sum["section"].apply(
+        lambda s: f"{inv_domain[s]} — {s}" if s in inv_domain else s
+    )
+    sec_sum_sorted = sec_sum.sort_values("compliance_pct", ascending=True)
+    fig2 = px.bar(sec_sum_sorted, x="compliance_pct", y="domain_label",
                   orientation="h", color="compliance_pct",
                   color_continuous_scale=["#e74c3c", "#f1c40f", "#2ecc71"],
                   range_color=[0, 100], text="compliance_pct",
                   template="plotly_dark")
     fig2.update_traces(texttemplate="%{text}%", textposition="outside")
-    fig2.update_layout(coloraxis_showscale=False, height=300,
+    fig2.update_layout(coloraxis_showscale=False,
+                       height=max(300, len(sec_sum_sorted) * 36),
                        margin=dict(t=20, b=20, l=10),
                        plot_bgcolor="#0e1117", paper_bgcolor="#0e1117",
                        yaxis_title=None, xaxis_title="Compliance %")
