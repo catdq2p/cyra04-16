@@ -390,9 +390,9 @@ with tab1:
                 for _, row in section_gaps.sort_values(
                     "risk_tier", key=lambda s: s.map(RISK_ORDER)
                 ).iterrows():
-                    cols = st.columns([0.7, 1, 4, 1.5])
-                    cols[0].markdown(f"`{row['id']}`")
-                    cols[1].markdown(badge(row["risk_tier"]))
+                    cols = st.columns([1, 0.7, 4, 1.5])
+                    cols[0].markdown(badge(row["risk_tier"]))
+                    cols[1].markdown(f"`{row['id']}`")
                     cols[2].markdown(row["statement"])
                     resp_color = {"No": "🔴", "Partial": "🟡", "N/A": "⚪", "—": "⬜"}.get(
                         row["response"], "🔵"
