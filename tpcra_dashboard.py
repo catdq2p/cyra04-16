@@ -122,10 +122,21 @@ DOMAIN_MAP = {
     "N": "AI & Emerging Technology Risk",
 }
 
+def _resolve_domain(qid: str) -> str:
+    """Extract domain letter from a section header like 'A — ORGANIZATIONAL MANAGEMENT'
+    and return the full domain name from DOMAIN_MAP, or the raw qid if not found."""
+    if "—" in qid:
+        letter = qid.split("—")[0].strip()
+        if letter in DOMAIN_MAP:
+            return DOMAIN_MAP[letter]
+    return qid.strip()
+
+
 def parse_part2(xl) -> pd.DataFrame:
     """
     Return a DataFrame of all assessable Part 2 items with columns:
     id, section, statement, response, other_info, risk_tier, comment_required
+    Section names are resolved via DOMAIN_MAP (e.g. 'A' -> 'Organizational Management').
     """
     df = xl.parse("Part 2", header=None)
     rows = []
@@ -139,25 +150,32 @@ def parse_part2(xl) -> pd.DataFrame:
         tier     = str(row[4]).strip() if pd.notna(row[4]) else "—"
         comment  = str(row[5]).strip() if pd.notna(row[5]) else "—"
 
-        # Detect section headers (no numeric id, stmt is blank)
-        if stmt in ("", "nan") and qid and not qid[0].isdigit() and not qid[0].isupper():
-            # Map domain letter to full name if available
-            domain_key = qid.split("—")[0].strip() if "—" in qid else qid.strip()
-            current_section = DOMAIN_MAP.get(domain_key, qid)
+        # Skip title row, blank rows, and column header row
+        if qid in ("", "nan", "#") or "TPCRA Questionnaire" in qid:
             continue
-        if stmt in ("", "nan") and qid and qid not in ("nan", ""):
-            domain_key = qid.split("—")[0].strip() if "—" in qid else qid.strip()
-            current_section = DOMAIN_MAP.get(domain_key, qid)
-            continue
-        if qid in ("nan", "", "#") or stmt in ("nan", "", "Statement / Question"):
-            if stmt in ("nan", "") and qid not in ("nan", ""):
-                domain_key = qid.split("—")[0].strip() if "—" in qid else qid.strip()
-                current_section = DOMAIN_MAP.get(domain_key, qid)
+        if stmt in ("nan", "", "Statement / Question") and qid in ("nan", "", "#"):
             continue
 
-        # Normalise tier
+        # Section header: stmt is blank, qid holds the section label
+        if stmt in ("", "nan"):
+            resolved = _resolve_domain(qid)
+            # Only update section if it resolves to a known domain;
+            # otherwise it's a sub-heading (e.g. "IT Security Policy covers...")
+            # — keep the current parent domain in that case
+            if resolved in DOMAIN_MAP.values():
+                current_section = resolved
+            # For N.x sub-sections, roll up to "AI & Emerging Technology Risk"
+            elif qid.startswith("N.") or qid.startswith("N "):
+                current_section = DOMAIN_MAP["N"]
+            # else: sub-heading within current domain — don't change current_section
+            continue
+
+        # Skip the column header row
+        if stmt == "Statement / Question":
+            continue
+
+        # Normalise tier and response
         tier_norm = tier if tier in RISK_ORDER else "—"
-
         if response in ("nan", ""):
             response = "—"
 
