@@ -532,7 +532,7 @@ with tab4:
         sections_data.append((current_section_label, items_in_section))
 
     for section_label, items in sections_data:
-        if not items:
+        if not items or not section_label:
             continue
         section_key = " ".join(section_label.split()[:2])
         icon = SECTION_ICONS.get(section_key, "📌")
