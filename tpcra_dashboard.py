@@ -4,6 +4,7 @@ Reads a completed TPCRA questionnaire (.xlsx) and summarizes gaps & risk.
 Usage: streamlit run tpcra_dashboard.py
 """
 
+import re
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -158,16 +159,16 @@ def parse_part2(xl) -> pd.DataFrame:
 
         # Section header: stmt is blank, qid holds the section label
         if stmt in ("", "nan"):
-            resolved = _resolve_domain(qid)
-            # Only update section if it resolves to a known domain;
-            # otherwise it's a sub-heading (e.g. "IT Security Policy covers...")
-            # — keep the current parent domain in that case
-            if resolved in DOMAIN_MAP.values():
-                current_section = resolved
-            # For N.x sub-sections, roll up to "AI & Emerging Technology Risk"
-            elif qid.startswith("N.") or qid.startswith("N "):
-                current_section = DOMAIN_MAP["N"]
-            # else: sub-heading within current domain — don't change current_section
+            # Only treat as a domain section if qid matches "X — ..." pattern
+            # where X is a single letter in DOMAIN_MAP. All other blank-stmt rows
+            # (e.g. "IT Security Policy covers...", "PASSWORD CONTROLS...") are
+            # sub-headings within the current domain — ignore them.
+            domain_match = re.match('^([A-Z]) [—-]', qid)
+            if domain_match:
+                letter = domain_match.group(1)
+                if letter in DOMAIN_MAP:
+                    current_section = DOMAIN_MAP[letter]
+            # All other blank-stmt rows are sub-headings — keep current_section
             continue
 
         # Skip the column header row
