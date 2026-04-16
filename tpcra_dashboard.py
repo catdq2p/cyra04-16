@@ -66,8 +66,9 @@ PASS_ANSWERS = {"yes"}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def badge(tier: str) -> str:
-    cls = f"badge-{tier}" if tier in RISK_COLORS else "badge-default"
-    return f'<span class="risk-badge {cls}">{tier}</span>'
+    icons = {"Critical": "🔴", "High": "🟠", "Medium": "🟡", "Low": "🟢"}
+    icon = icons.get(tier, "⚪")
+    return f"{icon} {tier}"
 
 
 def risk_score(tier: str) -> int:
@@ -364,7 +365,7 @@ with tab1:
             worst_tier = {v: k for k, v in RISK_ORDER.items()}.get(tier_label, "Low")
 
             with st.expander(
-                f"{badge(worst_tier)} &nbsp; **{section}** — {len(section_gaps)} gap(s)",
+                f"{badge(worst_tier)}  {section} — {len(section_gaps)} gap(s)",
                 expanded=(worst_tier in ("Critical", "High")),
             ):
                 for _, row in section_gaps.sort_values(
@@ -373,7 +374,7 @@ with tab1:
                     cols = st.columns([0.7, 4, 1, 1.5])
                     cols[0].markdown(f"`{row['id']}`")
                     cols[1].markdown(row["statement"])
-                    cols[2].markdown(badge(row["risk_tier"]), unsafe_allow_html=True)
+                    cols[2].markdown(badge(row["risk_tier"]))
                     resp_color = {"No": "🔴", "Partial": "🟡", "N/A": "⚪", "—": "⬜"}.get(
                         row["response"], "🔵"
                     )
