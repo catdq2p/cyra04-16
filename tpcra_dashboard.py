@@ -443,22 +443,14 @@ with tab2:
     st.markdown("### Full Questionnaire Response Review")
 
     # Filters
-    col_f1, col_f2, col_f3 = st.columns([2, 1.5, 1])
+    col_f1, col_f2 = st.columns([2, 1])
     with col_f1:
         search = st.text_input("🔍 Search statements", placeholder="e.g. encryption, MFA, patch…")
     with col_f2:
-        domain_options = ["All Domains"] + [f"{k} — {v}" for k, v in DOMAIN_MAP.items()]
-        domain_filter = st.selectbox("Domain", domain_options, key="tab2_domain")
-    with col_f3:
         resp_filter = st.multiselect("Response", ["Yes", "No", "Partial", "N/A", "—"],
                                       default=["Yes", "No", "Partial", "N/A", "—"])
 
     display_df = df_view.copy()
-
-    # Apply domain filter
-    if domain_filter != "All Domains":
-        selected_domain = domain_filter.split(" — ", 1)[1]
-        display_df = display_df[display_df["section"] == selected_domain]
 
     # Add domain label column (e.g. "A — Organizational Management")
     inv_domain = {v: k for k, v in DOMAIN_MAP.items()}
