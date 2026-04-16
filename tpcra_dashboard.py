@@ -487,77 +487,87 @@ with tab4:
     p1 = xl_obj.parse("Part 1", header=None)
 
     EXCLUDED_IDS = {"1.1", "1.2", "1.3", "1.4"}
-    EXCLUDED_SECTIONS = {"SECTION 1"}
     SECTION_ICONS = {
         "SECTION 2": "📋", "SECTION 3": "🏢",
         "SECTION 4": "💻", "SECTION 5": "🖧", "SECTION 6": "☁️",
         "SECTION 7": "🔒", "SECTION 8": "🔄",
     }
+    SHOW_SECTIONS = set(SECTION_ICONS.keys())
 
-    current_section_label = None
     current_section_key = None
+    current_section_label = None
     items_in_section = []
     sections_data = []
 
     for _, row in p1.iterrows():
-        qid  = str(row[0]).strip()
+        qid  = str(row[0]).strip() if pd.notna(row[0]) else ""
         q    = str(row[1]).strip() if pd.notna(row[1]) else ""
         resp = str(row[2]).strip() if pd.notna(row[2]) else ""
 
-        if qid in ("nan", "#", "") or q in ("nan", "Question", ""):
+        # Skip header/title rows
+        if qid in ("", "nan", "#") or qid.startswith("TPCRA"):
             continue
 
-        if "SECTION" in qid:
-            if items_in_section and current_section_key not in EXCLUDED_SECTIONS:
+        # Detect section header rows (q is blank, qid contains "SECTION")
+        if "SECTION" in qid and q in ("", "nan"):
+            # Save previous section if it's one we want to show
+            if current_section_key in SHOW_SECTIONS and items_in_section:
                 sections_data.append((current_section_label, items_in_section))
-            # Extract section key e.g. "SECTION 2"
-            current_section_key = " ".join(qid.split()[:2])
+            current_section_key = " ".join(qid.split()[:2])  # e.g. "SECTION 2"
             current_section_label = qid
             items_in_section = []
             continue
 
+        # Skip column header row
+        if q in ("", "nan", "Question"):
+            continue
+
+        # Skip excluded question IDs
         if qid in EXCLUDED_IDS:
             continue
 
-        if current_section_key in EXCLUDED_SECTIONS:
+        # Only collect items for sections we want to display
+        if current_section_key not in SHOW_SECTIONS:
             continue
 
         items_in_section.append({
             "#": qid,
             "Question": q,
-            "Response": resp if resp not in ("nan", "") else "—",
+            "Response": resp if resp not in ("", "nan") else "—",
         })
 
-    if items_in_section and current_section_key not in EXCLUDED_SECTIONS:
+    # Flush last section
+    if current_section_key in SHOW_SECTIONS and items_in_section:
         sections_data.append((current_section_label, items_in_section))
 
-    for section_label, items in sections_data:
-        if not items or not section_label:
-            continue
-        section_key = " ".join(section_label.split()[:2])
-        icon = SECTION_ICONS.get(section_key, "📌")
-        with st.expander(f"{icon} **{section_label}**", expanded=True):
-            for item in items:
-                col_q, col_r = st.columns([2, 2])
-                with col_q:
-                    st.markdown(
-                        f"<span style='color:#8899aa; font-size:11px'>{item['#']}</span><br>"
-                        f"<span style='font-size:14px'>{item['Question']}</span>",
-                        unsafe_allow_html=True
-                    )
-                with col_r:
-                    resp_val = item["Response"]
-                    if resp_val == "—":
+    if not sections_data:
+        st.info("No engagement information found in the uploaded file.")
+    else:
+        for section_label, items in sections_data:
+            section_key = " ".join(section_label.split()[:2])
+            icon = SECTION_ICONS.get(section_key, "📌")
+            with st.expander(f"{icon} **{section_label}**", expanded=True):
+                for item in items:
+                    col_q, col_r = st.columns([2, 2])
+                    with col_q:
                         st.markdown(
-                            "<span style='color:#8899aa; font-style:italic'>Not provided</span>",
+                            f"<span style='color:#8899aa; font-size:11px'>{item['#']}</span><br>"
+                            f"<span style='font-size:14px'>{item['Question']}</span>",
                             unsafe_allow_html=True
                         )
-                    else:
-                        st.markdown(
-                            f"<span style='font-size:14px'>{resp_val}</span>",
-                            unsafe_allow_html=True
-                        )
-                st.divider()
+                    with col_r:
+                        resp_val = item["Response"]
+                        if resp_val == "—":
+                            st.markdown(
+                                "<span style='color:#8899aa; font-style:italic'>Not provided</span>",
+                                unsafe_allow_html=True
+                            )
+                        else:
+                            st.markdown(
+                                f"<span style='font-size:14px'>{resp_val}</span>",
+                                unsafe_allow_html=True
+                            )
+                    st.divider()
 
 # ── Sidebar summary ────────────────────────────────────────────────────────────
 with st.sidebar:
