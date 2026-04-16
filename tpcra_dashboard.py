@@ -405,14 +405,25 @@ with tab1:
     if filtered_gaps.empty:
         st.success("✅ No gaps identified based on current filter settings.")
     else:
-        # Group by section
-        for section in filtered_gaps["section"].unique():
+        # Group by domain in A–N order
+        ordered_domains = list(DOMAIN_MAP.values())
+        gap_sections = filtered_gaps["section"].unique().tolist()
+        # Sort sections by domain order, unknown sections appended at end
+        sorted_sections = sorted(
+            gap_sections,
+            key=lambda s: ordered_domains.index(s) if s in ordered_domains else len(ordered_domains)
+        )
+
+        for section in sorted_sections:
             section_gaps = filtered_gaps[filtered_gaps["section"] == section]
             tier_label = section_gaps["risk_tier"].map(RISK_ORDER).min()
             worst_tier = {v: k for k, v in RISK_ORDER.items()}.get(tier_label, "Low")
+            # Find domain letter for label
+            domain_letter = next((k for k, v in DOMAIN_MAP.items() if v == section), "")
+            domain_label = f"{domain_letter} — {section}" if domain_letter else section
 
             with st.expander(
-                f"{section} — {len(section_gaps)} gap(s)",
+                f"{domain_label} ({len(section_gaps)} gap(s))",
                 expanded=(worst_tier in ("Critical", "High")),
             ):
                 for _, row in section_gaps.sort_values(
@@ -482,7 +493,7 @@ with tab3:
 
 # ── Tab 4: Engagement info ─────────────────────────────────────────────────────
 with tab4:
-    st.markdown("### Engagement & Provider Information")
+    st.markdown("### Engagement Information")
     xl_obj = pd.ExcelFile(BytesIO(uploaded.getvalue()))
     p1 = xl_obj.parse("Part 1", header=None)
 
