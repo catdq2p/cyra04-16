@@ -487,13 +487,15 @@ with tab4:
     p1 = xl_obj.parse("Part 1", header=None)
 
     EXCLUDED_IDS = {"1.1", "1.2", "1.3", "1.4"}
+    EXCLUDED_SECTIONS = {"SECTION 1"}
     SECTION_ICONS = {
-        "SECTION 1": "👤", "SECTION 2": "📋", "SECTION 3": "🏢",
-        "SECTION 4": "💻", "SECTION 5": "🖧",  "SECTION 6": "☁️",
+        "SECTION 2": "📋", "SECTION 3": "🏢",
+        "SECTION 4": "💻", "SECTION 5": "🖧", "SECTION 6": "☁️",
         "SECTION 7": "🔒", "SECTION 8": "🔄",
     }
 
     current_section_label = None
+    current_section_key = None
     items_in_section = []
     sections_data = []
 
@@ -506,13 +508,18 @@ with tab4:
             continue
 
         if "SECTION" in qid:
-            if items_in_section:
+            if items_in_section and current_section_key not in EXCLUDED_SECTIONS:
                 sections_data.append((current_section_label, items_in_section))
+            # Extract section key e.g. "SECTION 2"
+            current_section_key = " ".join(qid.split()[:2])
             current_section_label = qid
             items_in_section = []
             continue
 
         if qid in EXCLUDED_IDS:
+            continue
+
+        if current_section_key in EXCLUDED_SECTIONS:
             continue
 
         items_in_section.append({
@@ -521,16 +528,15 @@ with tab4:
             "Response": resp if resp not in ("nan", "") else "—",
         })
 
-    if items_in_section:
+    if items_in_section and current_section_key not in EXCLUDED_SECTIONS:
         sections_data.append((current_section_label, items_in_section))
 
     for section_label, items in sections_data:
         if not items:
             continue
-        icon = next((v for k, v in SECTION_ICONS.items() if k in (section_label or "")), "📌")
-        # Clean up section label: remove "SECTION X —" prefix noise
-        display_label = section_label or "General"
-        with st.expander(f"{icon} **{display_label}**", expanded=True):
+        section_key = " ".join(section_label.split()[:2])
+        icon = SECTION_ICONS.get(section_key, "📌")
+        with st.expander(f"{icon} **{section_label}**", expanded=True):
             for item in items:
                 col_q, col_r = st.columns([2, 2])
                 with col_q:
