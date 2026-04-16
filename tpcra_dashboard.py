@@ -105,6 +105,23 @@ def parse_part1(xl) -> dict:
     return meta
 
 
+DOMAIN_MAP = {
+    "A": "Organizational Management",
+    "B": "Human Resource Management",
+    "C": "Infrastructure Security",
+    "D": "Data Protection",
+    "E": "Access Management",
+    "F": "Application Security",
+    "G": "System Security",
+    "H": "Email Security",
+    "I": "Mobile Devices",
+    "J": "Incident Response",
+    "K": "Cloud Services",
+    "L": "Business Continuity",
+    "M": "Supply Chain & Physical Security",
+    "N": "AI & Emerging Technology Risk",
+}
+
 def parse_part2(xl) -> pd.DataFrame:
     """
     Return a DataFrame of all assessable Part 2 items with columns:
@@ -124,14 +141,18 @@ def parse_part2(xl) -> pd.DataFrame:
 
         # Detect section headers (no numeric id, stmt is blank)
         if stmt in ("", "nan") and qid and not qid[0].isdigit() and not qid[0].isupper():
+            # Map domain letter to full name if available
+            domain_key = qid.split("—")[0].strip() if "—" in qid else qid.strip()
+            current_section = DOMAIN_MAP.get(domain_key, qid)
             continue
         if stmt in ("", "nan") and qid and qid not in ("nan", ""):
-            current_section = qid
+            domain_key = qid.split("—")[0].strip() if "—" in qid else qid.strip()
+            current_section = DOMAIN_MAP.get(domain_key, qid)
             continue
         if qid in ("nan", "", "#") or stmt in ("nan", "", "Statement / Question"):
-            # Could be a section header row where qid holds the header
             if stmt in ("nan", "") and qid not in ("nan", ""):
-                current_section = qid
+                domain_key = qid.split("—")[0].strip() if "—" in qid else qid.strip()
+                current_section = DOMAIN_MAP.get(domain_key, qid)
             continue
 
         # Normalise tier
