@@ -435,7 +435,7 @@ with tab3:
 
 # ── Tab 4: Engagement info ─────────────────────────────────────────────────────
 with tab4:
-    st.markdown("### Engagement & Provider Information (Part 1)")
+    st.markdown("### Engagement & Provider Information ")
     xl_obj = pd.ExcelFile(BytesIO(uploaded.getvalue()))
     p1 = xl_obj.parse("Part 1", header=None)
     rows_out = []
